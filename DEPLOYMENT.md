@@ -43,9 +43,9 @@ npm install -g serve  # For serving static files
 Edit `client/.env.production`:
 ```bash
 # Replace with your server's IP or domain
-VITE_SERVER_URL=ws://YOUR_SERVER_IP:3001
+VITE_SERVER_URL=ws://YOUR_SERVER_IP:3005
 # Or for SSL:
-VITE_SERVER_URL=wss://yourdomain.com:3001
+VITE_SERVER_URL=wss://yourdomain.com:3005
 ```
 
 ### 3. Build the Project
@@ -152,7 +152,7 @@ VITE_SERVER_URL=wss://your-domain.com/ws
 # Allow ports
 sudo ufw allow 80/tcp   # HTTP
 sudo ufw allow 443/tcp  # HTTPS
-sudo ufw allow 3001/tcp # WebSocket (if not using Nginx)
+sudo ufw allow 3005/tcp # WebSocket (if not using Nginx)
 sudo ufw allow 5173/tcp # Client (if not using Nginx)
 
 # Enable firewall
@@ -221,7 +221,7 @@ pm2 set pm2-logrotate:rotateInterval '0 0 * * *'
 ### Port Already in Use
 ```bash
 # Find process using port
-sudo lsof -i :3001
+sudo lsof -i :3005
 sudo lsof -i :5173
 
 # Kill process
