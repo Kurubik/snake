@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Multiplayer Snake</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: #0a0a0a;
+      color: #ffffff;
+      overflow: hidden;
+      position: relative;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    #app {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    
+    #canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+    
+    #ui {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10;
+    }
+    
+    #ui > * {
+      pointer-events: auto;
+    }
+    
+    /* Menu Styles */
+    .menu {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.9);
+      border: 1px solid rgba(0, 255, 255, 0.3);
+      border-radius: 12px;
+      padding: 2rem;
+      min-width: 320px;
+      box-shadow: 0 0 30px rgba(0, 255, 255, 0.2);
+      backdrop-filter: blur(10px);
+    }
+    
+    .menu h1 {
+      text-align: center;
+      margin-bottom: 1.5rem;
+      font-size: 2rem;
+      background: linear-gradient(90deg, #00ffff, #ff00ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+    }
+    
+    .menu h2 {
+      text-align: center;
+      margin-bottom: 1rem;
+      font-size: 1.5rem;
+      color: #00ffff;
+    }
+    
+    .form-group {
+      margin-bottom: 1rem;
+    }
+    
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 0.9rem;
+    }
+    
+    .form-group input {
+      width: 100%;
+      padding: 0.75rem;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(0, 255, 255, 0.3);
+      border-radius: 6px;
+      color: white;
+      font-size: 1rem;
+      transition: all 0.3s;
+    }
+    
+    .form-group input:focus {
+      outline: none;
+      border-color: #00ffff;
+      background: rgba(255, 255, 255, 0.1);
+      box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+    }
+    
+    .button {
+      width: 100%;
+      padding: 0.75rem;
+      background: linear-gradient(90deg, rgba(0, 255, 255, 0.2), rgba(255, 0, 255, 0.2));
+      border: 1px solid rgba(0, 255, 255, 0.5);
+      border-radius: 6px;
+      color: white;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-bottom: 0.5rem;
+    }
+    
+    .button:hover:not(:disabled) {
+      background: linear-gradient(90deg, rgba(0, 255, 255, 0.3), rgba(255, 0, 255, 0.3));
+      box-shadow: 0 0 15px rgba(0, 255, 255, 0.4);
+      transform: translateY(-2px);
+    }
+    
+    .button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .button.primary {
+      background: linear-gradient(90deg, #00ffff, #ff00ff);
+      font-weight: bold;
+    }
+    
+    .button.ready {
+      background: linear-gradient(90deg, #00ff00, #00ffff);
+    }
+    
+    /* HUD Styles */
+    .hud {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: rgba(0, 0, 0, 0.7);
+      border: 1px solid rgba(0, 255, 255, 0.3);
+      border-radius: 8px;
+      padding: 1rem;
+      min-width: 200px;
+      backdrop-filter: blur(5px);
+    }
+    
+    .hud-item {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+      font-size: 0.9rem;
+    }
+    
+    .hud-item:last-child {
+      margin-bottom: 0;
+    }
+    
+    .hud-label {
+      color: rgba(255, 255, 255, 0.7);
+    }
+    
+    .hud-value {
+      color: #00ffff;
+      font-weight: bold;
+    }
+    
+    /* Players List */
+    .players-list {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.7);
+      border: 1px solid rgba(0, 255, 255, 0.3);
+      border-radius: 8px;
+      padding: 1rem;
+      min-width: 180px;
+      backdrop-filter: blur(5px);
+    }
+    
+    .players-list h3 {
+      color: #00ffff;
+      font-size: 1rem;
+      margin-bottom: 0.75rem;
+      text-align: center;
+    }
+    
+    .player-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 0.5rem;
+      font-size: 0.9rem;
+    }
+    
+    .player-color {
+      width: 12px;
+      height: 12px;
+      border-radius: 2px;
+      margin-right: 8px;
+      box-shadow: 0 0 5px currentColor;
+    }
+    
+    .player-name {
+      flex: 1;
+      color: rgba(255, 255, 255, 0.9);
+    }
+    
+    .player-status {
+      margin-left: 8px;
+      font-size: 0.8rem;
+      color: rgba(255, 255, 255, 0.5);
+    }
+    
+    .player-status.ready {
+      color: #00ff00;
+    }
+    
+    .player-status.dead {
+      color: #ff0066;
+    }
+    
+    /* Countdown */
+    .countdown {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 8rem;
+      font-weight: bold;
+      color: #00ffff;
+      text-shadow: 0 0 30px rgba(0, 255, 255, 0.8);
+      animation: pulse 1s ease-in-out;
+    }
+    
+    @keyframes pulse {
+      0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+      50% { transform: translate(-50%, -50%) scale(1.2); }
+      100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    }
+    
+    /* Leaderboard */
+    .leaderboard {
+      margin-top: 1.5rem;
+    }
+    
+    .leaderboard-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem;
+      margin-bottom: 0.5rem;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 4px;
+      border-left: 3px solid #00ffff;
+    }
+    
+    .leaderboard-item.winner {
+      border-left-color: #ffff00;
+      background: rgba(255, 255, 0, 0.1);
+    }
+    
+    .leaderboard-name {
+      flex: 1;
+    }
+    
+    .leaderboard-score {
+      color: #00ffff;
+      font-weight: bold;
+    }
+    
+    /* Mobile Controls */
+    .mobile-controls {
+      display: none;
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      gap: 10px;
+    }
+    
+    .control-button {
+      width: 60px;
+      height: 60px;
+      background: rgba(0, 0, 0, 0.7);
+      border: 2px solid rgba(0, 255, 255, 0.5);
+      border-radius: 8px;
+      color: #00ffff;
+      font-size: 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    
+    .control-button:active {
+      background: rgba(0, 255, 255, 0.2);
+    }
+    
+    @media (max-width: 768px) and (pointer: coarse) {
+      .mobile-controls {
+        display: grid;
+        grid-template-columns: repeat(3, 60px);
+        grid-template-rows: repeat(3, 60px);
+      }
+      
+      .control-button.up { grid-column: 2; grid-row: 1; }
+      .control-button.left { grid-column: 1; grid-row: 2; }
+      .control-button.right { grid-column: 3; grid-row: 2; }
+      .control-button.down { grid-column: 2; grid-row: 3; }
+    }
+    
+    .hidden {
+      display: none !important;
+    }
+    
+    .error-message {
+      color: #ff3366;
+      text-align: center;
+      margin-top: 1rem;
+      font-size: 0.9rem;
+    }
+    
+    .room-code-display {
+      text-align: center;
+      margin: 1rem 0;
+      padding: 1rem;
+      background: rgba(0, 255, 255, 0.1);
+      border-radius: 6px;
+      border: 1px solid rgba(0, 255, 255, 0.3);
+    }
+    
+    .room-code-display .code {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #00ffff;
+      letter-spacing: 0.2em;
+    }
+    
+    .room-code-display .label {
+      font-size: 0.9rem;
+      color: rgba(255, 255, 255, 0.7);
+      margin-bottom: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <canvas id="canvas"></canvas>
+    <div id="ui"></div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
