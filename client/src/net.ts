@@ -1,7 +1,7 @@
 // WebSocket networking and synchronization
 
-import { 
-  ServerMessage, 
+import {
+  ServerMessage,
   ClientMessage,
   Direction,
   Snake,
@@ -37,16 +37,16 @@ let currentPing = 0;
 let predictedState: GameState | null = null;
 
 export function connect(serverUrl?: string) {
-  const url = serverUrl || import.meta.env.VITE_SERVER_URL || 'ws://localhost:3001';
-  
+  const url = serverUrl || import.meta.env.VITE_SERVER_URL || 'ws://localhost:3005';
+
   try {
     ws = new WebSocket(url);
-    
+
     ws.onopen = () => {
       console.log('Connected to server');
       startPingInterval();
     };
-    
+
     ws.onmessage = (event) => {
       try {
         const message: ServerMessage = JSON.parse(event.data);
@@ -55,12 +55,12 @@ export function connect(serverUrl?: string) {
         console.error('Failed to parse message:', error);
       }
     };
-    
+
     ws.onerror = (error) => {
       console.error('WebSocket error:', error);
       showError('Connection error');
     };
-    
+
     ws.onclose = () => {
       console.log('Disconnected from server');
       showError('Disconnected from server');
@@ -77,31 +77,31 @@ function handleMessage(message: ServerMessage) {
     case 'joined':
       handleJoined(message.data as JoinedMessage);
       break;
-      
+
     case 'roomCreated':
       // Room created, waiting for joined message
       break;
-      
+
     case 'lobby':
       handleLobby(message.data as LobbyMessage);
       break;
-      
+
     case 'start':
       handleStart(message.data as StartMessage);
       break;
-      
+
     case 'state':
       handleState(message.data as StateMessage);
       break;
-      
+
     case 'ended':
       handleEnded(message.data as EndedMessage);
       break;
-      
+
     case 'error':
       handleError(message.data as ErrorMessage);
       break;
-      
+
     case 'pong':
       handlePong();
       break;
@@ -129,7 +129,7 @@ function handleStart(data: StartMessage) {
   tickRate = data.tickRate;
   const countdown = Math.max(0, data.startTime - Date.now());
   showCountdown(countdown);
-  
+
   setTimeout(() => {
     setGameStatus('playing');
     currentTick = 0;
@@ -142,53 +142,53 @@ function handleStart(data: StartMessage) {
 function handleState(data: StateMessage) {
   // Acknowledge inputs
   lastAcknowledgedSeq = data.seqAck;
-  
+
   // Remove acknowledged inputs
   pendingInputs = pendingInputs.filter(input => input.seq > lastAcknowledgedSeq);
-  
+
   // Store server state for interpolation
   serverStates.push(data);
   if (serverStates.length > 10) {
     serverStates.shift();
   }
-  
+
   // Update current tick
   currentTick = data.tick;
-  
+
   // Reconstruct full game state
   const gameState: GameState = {
     snakes: new Map(),
     foods: data.foods,
     events: data.events,
   };
-  
+
   // Add your snake if exists
   if (data.you && playerId) {
     gameState.snakes.set(playerId, data.you);
   }
-  
+
   // Add other snakes
   data.others.forEach(snake => {
     gameState.snakes.set(snake.id, snake);
   });
-  
+
   // Apply client-side prediction
   if (playerId && pendingInputs.length > 0) {
     predictedState = { ...gameState };
     const rng = new RNG(roomSeed + currentTick);
-    
+
     // Re-apply unacknowledged inputs
     pendingInputs.forEach(input => {
       const inputs: InputMap = { [playerId]: input.dir };
       predictedState = step(predictedState!, inputs, roomSettings, rng);
     });
-    
+
     setCurrentState(predictedState);
   } else {
     setCurrentState(gameState);
     predictedState = gameState;
   }
-  
+
   // Debug: Check state hash
   if (data.hash) {
     const clientHash = hashState(gameState);
@@ -220,7 +220,7 @@ export function sendMessage(message: ClientMessage) {
 
 export function joinRoom(name: string, code?: string) {
   connect();
-  
+
   // Wait for connection
   const checkConnection = setInterval(() => {
     if (ws && ws.readyState === WebSocket.OPEN) {
@@ -235,7 +235,7 @@ export function joinRoom(name: string, code?: string) {
 
 export function createRoom(name: string) {
   connect();
-  
+
   // Wait for connection
   const checkConnection = setInterval(() => {
     if (ws && ws.readyState === WebSocket.OPEN) {
@@ -244,7 +244,7 @@ export function createRoom(name: string) {
         type: 'createRoom',
         data: {}
       });
-      
+
       // Then join with name
       setTimeout(() => {
         sendMessage({
@@ -265,7 +265,7 @@ export function setReady(ready: boolean) {
 
 export function sendInput(direction: Direction) {
   if (!playerId) return;
-  
+
   // Check if opposite direction
   const currentSnake = predictedState?.snakes.get(playerId);
   if (currentSnake) {
@@ -275,25 +275,25 @@ export function sendInput(direction: Direction) {
       left: 'right',
       right: 'left'
     };
-    
+
     if (opposite[direction] === currentSnake.direction) {
       return; // Ignore opposite direction
     }
   }
-  
+
   sequenceNumber++;
   const input = {
     seq: sequenceNumber,
     dir: direction,
     time: Date.now()
   };
-  
+
   // Store for prediction
   pendingInputs.push(input);
   if (pendingInputs.length > RECONCILIATION_BUFFER_SIZE) {
     pendingInputs.shift();
   }
-  
+
   // Send to server
   sendMessage({
     type: 'input',
@@ -303,7 +303,7 @@ export function sendInput(direction: Direction) {
       clientTime: input.time
     }
   });
-  
+
   // Apply prediction immediately
   if (predictedState && roomSettings) {
     const inputs: InputMap = { [playerId]: direction };
@@ -329,13 +329,13 @@ export function getPing(): number {
 // Interpolation for other players
 export function getInterpolatedState(): GameState | null {
   if (serverStates.length < 2) return null;
-  
+
   const now = Date.now() - INTERPOLATION_DELAY;
-  
+
   // Find two states to interpolate between
   let state1: StateMessage | null = null;
   let state2: StateMessage | null = null;
-  
+
   for (let i = 0; i < serverStates.length - 1; i++) {
     if (serverStates[i].tick <= currentTick && serverStates[i + 1].tick > currentTick) {
       state1 = serverStates[i];
@@ -343,20 +343,20 @@ export function getInterpolatedState(): GameState | null {
       break;
     }
   }
-  
+
   if (!state1 || !state2) return null;
-  
+
   // Calculate interpolation factor
   const tickDiff = state2.tick - state1.tick;
   const t = Math.min(1, (currentTick - state1.tick) / tickDiff);
-  
+
   // Create interpolated state
   const interpolated: GameState = {
     snakes: new Map(),
     foods: state2.foods, // Use latest food positions
     events: []
   };
-  
+
   // Interpolate other players' positions
   state2.others.forEach(snake2 => {
     const snake1 = state1!.others.find(s => s.id === snake2.id);
@@ -364,7 +364,7 @@ export function getInterpolatedState(): GameState | null {
       interpolated.snakes.set(snake2.id, snake2);
       return;
     }
-    
+
     // Interpolate snake segments
     const interpolatedSnake: Snake = {
       ...snake2,
@@ -377,10 +377,10 @@ export function getInterpolatedState(): GameState | null {
         };
       })
     };
-    
+
     interpolated.snakes.set(snake2.id, interpolatedSnake);
   });
-  
+
   // Add your predicted snake
   if (playerId && predictedState) {
     const yourSnake = predictedState.snakes.get(playerId);
@@ -388,6 +388,6 @@ export function getInterpolatedState(): GameState | null {
       interpolated.snakes.set(playerId, yourSnake);
     }
   }
-  
+
   return interpolated;
 }

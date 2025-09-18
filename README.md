@@ -21,7 +21,7 @@ npm install
 npm run dev
 
 # Or run separately:
-npm run dev:server  # Server on :3001
+npm run dev:server  # Server on :3005
 npm run dev:client  # Client on :5173
 ```
 
@@ -110,11 +110,11 @@ npm run lint
 ## Environment Variables
 
 ### Server
-- `PORT`: Server port (default: 3001)
+- `PORT`: Server port (default: 3005)
 - `HOST`: Server host (default: localhost)
 
 ### Client
-- `VITE_SERVER_URL`: WebSocket server URL (default: ws://localhost:3001)
+- `VITE_SERVER_URL`: WebSocket server URL (default: ws://localhost:3005)
 
 ## Recording Demo
 

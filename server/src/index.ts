@@ -6,7 +6,7 @@ import { Room, Player, ClientMessage, ServerMessage } from './shared/types.js';
 import { createRoom, joinRoom, handleMessage } from './room.js';
 import { HEARTBEAT_INTERVAL } from './shared/constants.js';
 
-const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3001;
+const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3005;
 const HOST = process.env.HOST || 'localhost';
 
 // Store active rooms and client connections
@@ -22,25 +22,25 @@ const server = createServer((req, res) => {
   // Health check endpoint
   if (req.url === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ 
-      status: 'ok', 
+    res.end(JSON.stringify({
+      status: 'ok',
       rooms: rooms.size,
-      clients: clients.size 
+      clients: clients.size
     }));
     return;
   }
-  
+
   // CORS headers for development
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  
+
   if (req.method === 'OPTIONS') {
     res.writeHead(204);
     res.end();
     return;
   }
-  
+
   res.writeHead(404);
   res.end('Not found');
 });
@@ -50,14 +50,14 @@ const wss = new WebSocketServer({ server });
 
 wss.on('connection', (ws: WebSocket) => {
   const playerId = generateId();
-  
+
   clients.set(ws, {
     playerId,
     lastActivity: Date.now(),
   });
-  
+
   console.log(`Player ${playerId} connected`);
-  
+
   // Set up ping/pong for connection health
   ws.on('pong', () => {
     const client = clients.get(ws);
@@ -65,16 +65,16 @@ wss.on('connection', (ws: WebSocket) => {
       client.lastActivity = Date.now();
     }
   });
-  
+
   ws.on('message', (data: Buffer) => {
     try {
       const message: ClientMessage = JSON.parse(data.toString());
       const client = clients.get(ws);
-      
+
       if (!client) return;
-      
+
       client.lastActivity = Date.now();
-      
+
       handleMessage(ws, message, client, rooms, clients);
     } catch (error) {
       console.error('Message handling error:', error);
@@ -87,25 +87,25 @@ wss.on('connection', (ws: WebSocket) => {
       });
     }
   });
-  
+
   ws.on('close', () => {
     const client = clients.get(ws);
-    
+
     if (client) {
       console.log(`Player ${client.playerId} disconnected`);
-      
+
       // Remove from room if in one
       if (client.roomCode) {
         const room = rooms.get(client.roomCode);
         if (room) {
           room.players.delete(client.playerId);
-          
+
           // Broadcast updated lobby state
           broadcastToRoom(room, {
             type: 'lobby',
             data: getLobbyData(room),
           }, clients);
-          
+
           // Clean up empty rooms
           if (room.players.size === 0) {
             rooms.delete(client.roomCode);
@@ -123,11 +123,11 @@ wss.on('connection', (ws: WebSocket) => {
           }
         }
       }
-      
+
       clients.delete(ws);
     }
   });
-  
+
   ws.on('error', (error) => {
     console.error('WebSocket error:', error);
   });
@@ -136,15 +136,15 @@ wss.on('connection', (ws: WebSocket) => {
 // Heartbeat to detect stale connections
 setInterval(() => {
   const now = Date.now();
-  
+
   wss.clients.forEach((ws) => {
     const client = clients.get(ws);
-    
+
     if (!client) {
       ws.terminate();
       return;
     }
-    
+
     if (now - client.lastActivity > HEARTBEAT_INTERVAL * 2) {
       console.log(`Terminating inactive client ${client.playerId}`);
       ws.terminate();
@@ -153,7 +153,7 @@ setInterval(() => {
       ws.ping();
     }
   });
-  
+
   // Clean up old empty rooms
   rooms.forEach((room, code) => {
     if (room.players.size === 0 && now - room.tick > 60000) {
@@ -230,10 +230,10 @@ server.listen(PORT, HOST, () => {
 // Graceful shutdown
 process.on('SIGINT', () => {
   console.log('\nShutting down gracefully...');
-  
+
   // Close all connections
   wss.clients.forEach(ws => ws.close());
-  
+
   // Close server
   server.close(() => {
     console.log('Server closed');
