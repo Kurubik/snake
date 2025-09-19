@@ -26,11 +26,14 @@ mkdir -p logs
 
 # Update the client production environment with your server IP
 echo "Updating client configuration..."
-SERVER_IP=$(hostname -I | awk '{print $1}')
+# Try to get external IP
+SERVER_IP=$(curl -s ifconfig.me || hostname -I | awk '{print $1}')
+echo "Detected server IP: ${SERVER_IP}"
 echo "# Auto-generated production config
 VITE_SERVER_URL=ws://${SERVER_IP}:3005" > client/.env.production
 
 # Rebuild client with new config
+echo "Rebuilding client with correct WebSocket URL..."
 npm run build:client
 
 # Start with PM2 using simple config
@@ -48,6 +51,8 @@ echo "✅ Deployment fixed!"
 echo ""
 echo "Your game should now be accessible at:"
 echo "  http://${SERVER_IP}:5173"
+echo "WebSocket server at:"
+echo "  ws://${SERVER_IP}:3005"
 echo ""
 echo "Check logs with:"
 echo "  pm2 logs snake-client"
