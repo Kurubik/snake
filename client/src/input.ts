@@ -13,6 +13,10 @@ let isBoostPressed = false;
 let lastFireTime = 0;
 const FIRE_COOLDOWN = 500; // ms between fires
 
+// Mobile control elements
+let mobileControlsElement: HTMLElement | null = null;
+let mobileActionsElement: HTMLElement | null = null;
+
 export function initInput() {
   // Keyboard controls
   window.addEventListener('keydown', handleKeydown);
@@ -21,8 +25,7 @@ export function initInput() {
   // Touch controls
   initTouchControls();
   
-  // Mobile control buttons
-  initMobileButtons();
+  // Don't create mobile buttons here - they'll be created when game starts
 }
 
 function handleKeydown(event: KeyboardEvent) {
@@ -162,15 +165,19 @@ function initTouchControls() {
 
 // Mobile button controls
 function initMobileButtons() {
-  // Create mobile control buttons if on touch device
+  // Only create for touch devices
   if (!('ontouchstart' in window)) return;
+  
+  // Remove any existing controls first
+  removeMobileButtons();
   
   const ui = document.getElementById('ui');
   if (!ui) return;
   
-  const controls = document.createElement('div');
-  controls.className = 'mobile-controls';
-  controls.innerHTML = `
+  // Create direction controls
+  mobileControlsElement = document.createElement('div');
+  mobileControlsElement.className = 'mobile-controls';
+  mobileControlsElement.innerHTML = `
     <button class="control-button up" data-dir="up">↑</button>
     <button class="control-button left" data-dir="left">←</button>
     <button class="control-button right" data-dir="right">→</button>
@@ -178,28 +185,29 @@ function initMobileButtons() {
   `;
   
   // Add action buttons
-  const actionControls = document.createElement('div');
-  actionControls.className = 'mobile-actions';
-  actionControls.style.cssText = `
+  mobileActionsElement = document.createElement('div');
+  mobileActionsElement.className = 'mobile-actions';
+  mobileActionsElement.style.cssText = `
     position: absolute;
     bottom: 20px;
     right: 20px;
     display: flex;
     gap: 10px;
+    z-index: 100;
   `;
-  actionControls.innerHTML = `
+  mobileActionsElement.innerHTML = `
     <button class="action-button boost" id="boostBtn">⚡ Boost</button>
     <button class="action-button fire" id="fireBtn">🔥 Fire</button>
   `;
   
-  ui.appendChild(controls);
-  ui.appendChild(actionControls);
+  ui.appendChild(mobileControlsElement);
+  ui.appendChild(mobileActionsElement);
   
   // Add event listeners for direction buttons
-  controls.querySelectorAll('.control-button').forEach(button => {
+  mobileControlsElement.querySelectorAll('.control-button').forEach(button => {
     button.addEventListener('click', (e) => {
       const dir = (e.target as HTMLElement).dataset.dir as Direction;
-      if (dir) {
+      if (dir && gameStatus === 'playing') {
         handleDirectionInput(dir);
       }
     });
@@ -252,9 +260,37 @@ function initMobileButtons() {
   }
 }
 
+// Remove mobile controls from DOM
+function removeMobileButtons() {
+  if (mobileControlsElement) {
+    mobileControlsElement.remove();
+    mobileControlsElement = null;
+  }
+  
+  if (mobileActionsElement) {
+    mobileActionsElement.remove();
+    mobileActionsElement = null;
+  }
+}
+
 // Reset input state
 export function resetInput() {
   lastDirection = null;
   inputBuffer = null;
   lastInputTime = 0;
+  isBoostPressed = false;
+  lastFireTime = 0;
+  removeMobileButtons();
+}
+
+// Show mobile controls when game starts
+export function showMobileControls() {
+  if ('ontouchstart' in window) {
+    initMobileButtons();
+  }
+}
+
+// Hide mobile controls when game ends
+export function hideMobileControls() {
+  removeMobileButtons();
 }

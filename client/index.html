@@ -51,6 +51,10 @@
       pointer-events: auto;
     }
     
+    #ui > * {
+      pointer-events: auto;
+    }
+    
     /* Menu Styles */
     .menu {
       position: absolute;
@@ -283,12 +287,14 @@
     
     /* Mobile Controls */
     .mobile-controls {
-      display: none;
       position: absolute;
       bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      gap: 10px;
+      left: 20px;
+      display: grid;
+      grid-template-columns: repeat(3, 60px);
+      grid-template-rows: repeat(3, 60px);
+      gap: 5px;
+      z-index: 100;
     }
     
     .control-button {
@@ -310,6 +316,11 @@
     .control-button:active {
       background: rgba(0, 255, 255, 0.2);
     }
+    
+    .control-button.up { grid-column: 2; grid-row: 1; }
+    .control-button.left { grid-column: 1; grid-row: 2; }
+    .control-button.right { grid-column: 3; grid-row: 2; }
+    .control-button.down { grid-column: 2; grid-row: 3; }
     
     @media (max-width: 768px) and (pointer: coarse) {
       .mobile-controls {

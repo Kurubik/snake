@@ -2,7 +2,7 @@
 
 import { initScene, render, updateScene } from './scene';
 import { initUI, updateUI } from './ui';
-import { initInput } from './input';
+import { initInput, showMobileControls, hideMobileControls, resetInput } from './input';
 import { GameState } from './shared/types';
 
 // Global state
@@ -73,7 +73,22 @@ export function setRoomCode(code: string | null) {
 }
 
 export function setGameStatus(status: string) {
+  const previousStatus = gameStatus;
   gameStatus = status;
+  
+  // Handle mobile controls based on game status
+  if (status === 'playing' && previousStatus !== 'playing') {
+    // Show mobile controls when game starts
+    showMobileControls();
+  } else if (status !== 'playing' && previousStatus === 'playing') {
+    // Hide mobile controls when game ends or returns to menu
+    hideMobileControls();
+  }
+  
+  // Reset input when leaving game
+  if (status === 'menu' || status === 'ended') {
+    resetInput();
+  }
 }
 
 // Start the app
