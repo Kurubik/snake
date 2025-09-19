@@ -35,7 +35,7 @@ let currentPing = 0;
 let predictedState: GameState | null = null;
 
 export function connect(serverUrl?: string) {
-  const url = serverUrl || (import.meta as any).env?.VITE_SERVER_URL || 'ws://localhost:3005';
+  const url = serverUrl || (import.meta as any).env?.VITE_SERVER_URL || 'ws://134.209.227.100:3005';
 
   try {
     ws = new WebSocket(url);
