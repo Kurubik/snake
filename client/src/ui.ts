@@ -4,6 +4,7 @@ import { joinRoom, createRoom, setReady, getPing } from './net';
 import { gameStatus, playerId, roomCode, currentState } from './main';
 import { LobbyMessage, EndedMessage } from './shared/types';
 import { updateGridSize } from './scene';
+import { showMobileControls } from './input';
 
 let uiContainer: HTMLElement | null = null;
 let currentLobbyData: LobbyMessage | null = null;
@@ -240,6 +241,11 @@ function showGameHUD() {
       <div id="playersList"></div>
     </div>
   `;
+  
+  // Ensure mobile controls are visible for touch devices
+  if ('ontouchstart' in window) {
+    showMobileControls();
+  }
 }
 
 function updateHUD() {

@@ -171,12 +171,27 @@ function initMobileButtons() {
   // Remove any existing controls first
   removeMobileButtons();
   
-  const ui = document.getElementById('ui');
-  if (!ui) return;
+  // Create a container for mobile controls that won't be cleared
+  let controlsContainer = document.getElementById('mobile-controls-container');
+  if (!controlsContainer) {
+    controlsContainer = document.createElement('div');
+    controlsContainer.id = 'mobile-controls-container';
+    controlsContainer.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1000;
+    `;
+    document.body.appendChild(controlsContainer);
+  }
   
   // Create direction controls
   mobileControlsElement = document.createElement('div');
   mobileControlsElement.className = 'mobile-controls';
+  mobileControlsElement.style.pointerEvents = 'auto';
   mobileControlsElement.innerHTML = `
     <button class="control-button up" data-dir="up">↑</button>
     <button class="control-button left" data-dir="left">←</button>
@@ -194,14 +209,15 @@ function initMobileButtons() {
     display: flex;
     gap: 10px;
     z-index: 100;
+    pointer-events: auto;
   `;
   mobileActionsElement.innerHTML = `
     <button class="action-button boost" id="boostBtn">⚡ Boost</button>
     <button class="action-button fire" id="fireBtn">🔥 Fire</button>
   `;
   
-  ui.appendChild(mobileControlsElement);
-  ui.appendChild(mobileActionsElement);
+  controlsContainer.appendChild(mobileControlsElement);
+  controlsContainer.appendChild(mobileActionsElement);
   
   // Add event listeners for direction buttons
   mobileControlsElement.querySelectorAll('.control-button').forEach(button => {
@@ -271,6 +287,12 @@ function removeMobileButtons() {
     mobileActionsElement.remove();
     mobileActionsElement = null;
   }
+  
+  // Also remove the container if it exists and is empty
+  const container = document.getElementById('mobile-controls-container');
+  if (container && container.children.length === 0) {
+    container.remove();
+  }
 }
 
 // Reset input state
@@ -286,7 +308,10 @@ export function resetInput() {
 // Show mobile controls when game starts
 export function showMobileControls() {
   if ('ontouchstart' in window) {
-    initMobileButtons();
+    // Add a small delay to ensure controls are added after any UI updates
+    setTimeout(() => {
+      initMobileButtons();
+    }, 100);
   }
 }
 
