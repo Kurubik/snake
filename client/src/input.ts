@@ -89,6 +89,8 @@ function handleKeyup(event: KeyboardEvent) {
 function handleDirectionInput(direction: Direction) {
   const now = Date.now();
   
+  console.log('Direction input:', direction); // Debug log
+  
   // Rate limit inputs
   if (now - lastInputTime < INPUT_COOLDOWN) {
     inputBuffer = direction;
@@ -165,8 +167,13 @@ function initTouchControls() {
 
 // Mobile button controls
 function initMobileButtons() {
-  // Only create for touch devices
-  if (!('ontouchstart' in window)) return;
+  // Check for touch device or small screen
+  const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  const isSmallScreen = window.innerWidth <= 768;
+  
+  if (!isTouchDevice && !isSmallScreen) return;
+  
+  console.log('Initializing mobile controls'); // Debug
   
   // Remove any existing controls first
   removeMobileButtons();
@@ -191,12 +198,22 @@ function initMobileButtons() {
   // Create direction controls
   mobileControlsElement = document.createElement('div');
   mobileControlsElement.className = 'mobile-controls';
-  mobileControlsElement.style.pointerEvents = 'auto';
+  mobileControlsElement.style.cssText = `
+    pointer-events: auto;
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    display: grid;
+    grid-template-columns: repeat(3, 60px);
+    grid-template-rows: repeat(3, 60px);
+    gap: 5px;
+    z-index: 1100;
+  `;
   mobileControlsElement.innerHTML = `
-    <button class="control-button up" data-dir="up">↑</button>
-    <button class="control-button left" data-dir="left">←</button>
-    <button class="control-button right" data-dir="right">→</button>
-    <button class="control-button down" data-dir="down">↓</button>
+    <button class="control-button up" data-dir="up" style="grid-column: 2; grid-row: 1;">↑</button>
+    <button class="control-button left" data-dir="left" style="grid-column: 1; grid-row: 2;">←</button>
+    <button class="control-button right" data-dir="right" style="grid-column: 3; grid-row: 2;">→</button>
+    <button class="control-button down" data-dir="down" style="grid-column: 2; grid-row: 3;">↓</button>
   `;
   
   // Add action buttons
@@ -221,16 +238,37 @@ function initMobileButtons() {
   
   // Add event listeners for direction buttons
   mobileControlsElement.querySelectorAll('.control-button').forEach(button => {
-    button.addEventListener('click', (e) => {
-      const dir = (e.target as HTMLElement).dataset.dir as Direction;
-      if (dir && gameStatus === 'playing') {
+    const buttonElement = button as HTMLElement;
+    
+    // Use touchstart for immediate response on mobile
+    buttonElement.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const dir = buttonElement.dataset.dir as Direction;
+      console.log('Touch start on button:', dir); // Debug
+      if (dir) {
         handleDirectionInput(dir);
+        // Visual feedback
+        buttonElement.style.backgroundColor = 'rgba(0, 255, 255, 0.3)';
       }
     });
     
-    // Prevent double tap zoom
-    button.addEventListener('touchend', (e) => {
+    buttonElement.addEventListener('touchend', (e) => {
       e.preventDefault();
+      e.stopPropagation();
+      // Remove visual feedback
+      buttonElement.style.backgroundColor = '';
+    });
+    
+    // Also support click for debugging on desktop
+    buttonElement.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const dir = buttonElement.dataset.dir as Direction;
+      console.log('Click on button:', dir); // Debug
+      if (dir) {
+        handleDirectionInput(dir);
+      }
     });
   });
   
@@ -307,7 +345,10 @@ export function resetInput() {
 
 // Show mobile controls when game starts
 export function showMobileControls() {
-  if ('ontouchstart' in window) {
+  const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  const isSmallScreen = window.innerWidth <= 768;
+  
+  if (isTouchDevice || isSmallScreen) {
     // Add a small delay to ensure controls are added after any UI updates
     setTimeout(() => {
       initMobileButtons();

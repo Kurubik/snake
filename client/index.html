@@ -289,7 +289,7 @@
       position: absolute;
       bottom: 20px;
       left: 20px;
-      display: none;
+      display: grid;
       grid-template-columns: repeat(3, 60px);
       grid-template-rows: repeat(3, 60px);
       gap: 5px;
@@ -310,6 +310,10 @@
       cursor: pointer;
       user-select: none;
       -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      -webkit-touch-callout: none;
+      position: relative;
+      z-index: 1101;
     }
 
     .control-button:active {

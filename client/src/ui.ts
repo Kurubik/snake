@@ -243,7 +243,9 @@ function showGameHUD() {
   `;
   
   // Ensure mobile controls are visible for touch devices
-  if ('ontouchstart' in window) {
+  const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  const isSmallScreen = window.innerWidth <= 768;
+  if (isTouchDevice || isSmallScreen) {
     showMobileControls();
   }
 }
