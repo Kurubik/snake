@@ -37,28 +37,60 @@ function showMainMenu() {
         <input type="text" id="playerName" placeholder="Enter your name" maxlength="20" value="${localStorage.getItem('playerName') || ''}">
       </div>
       
-      <button class="button primary" id="createRoomBtn">Create Room</button>
+      <button class="button primary" id="quickPlayBtn">Quick Play (Public Room)</button>
       
-      <div style="text-align: center; margin: 1rem 0; color: rgba(255,255,255,0.5);">
-        — OR —
+      <div style="margin: 1rem 0;">
+        <label style="display: flex; align-items: center; justify-content: center; cursor: pointer;">
+          <input type="checkbox" id="customRoomToggle" style="margin-right: 0.5rem;">
+          <span style="color: rgba(255,255,255,0.7);">Use Custom Room</span>
+        </label>
       </div>
       
-      <div class="form-group">
-        <label>Room Code</label>
-        <input type="text" id="roomCode" placeholder="Enter room code" maxlength="6" style="text-transform: uppercase;">
+      <div id="customRoomSection" style="display: none;">
+        <div style="text-align: center; margin: 1rem 0; color: rgba(255,255,255,0.5);">
+          — Custom Room —
+        </div>
+        
+        <button class="button" id="createRoomBtn">Create Private Room</button>
+        
+        <div style="text-align: center; margin: 1rem 0; color: rgba(255,255,255,0.5);">
+          — OR —
+        </div>
+        
+        <div class="form-group">
+          <label>Room Code</label>
+          <input type="text" id="roomCode" placeholder="Enter room code" maxlength="6" style="text-transform: uppercase;">
+        </div>
+        
+        <button class="button" id="joinRoomBtn">Join Private Room</button>
       </div>
-      
-      <button class="button" id="joinRoomBtn">Join Room</button>
       
       <div id="errorMsg" class="error-message"></div>
     </div>
   `;
   
   // Add event listeners
+  const quickPlayBtn = document.getElementById('quickPlayBtn');
   const createBtn = document.getElementById('createRoomBtn');
   const joinBtn = document.getElementById('joinRoomBtn');
   const nameInput = document.getElementById('playerName') as HTMLInputElement;
   const codeInput = document.getElementById('roomCode') as HTMLInputElement;
+  const customToggle = document.getElementById('customRoomToggle') as HTMLInputElement;
+  const customSection = document.getElementById('customRoomSection');
+  
+  // Toggle custom room section
+  customToggle?.addEventListener('change', () => {
+    if (customSection) {
+      customSection.style.display = customToggle.checked ? 'block' : 'none';
+    }
+  });
+  
+  // Quick play - join public room
+  quickPlayBtn?.addEventListener('click', () => {
+    const name = nameInput?.value.trim() || 'Player';
+    localStorage.setItem('playerName', name);
+    joinRoom(name, 'PUBLIC');
+  });
   
   createBtn?.addEventListener('click', () => {
     const name = nameInput?.value.trim() || 'Player';
@@ -82,7 +114,7 @@ function showMainMenu() {
   // Enter key handling
   nameInput?.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
-      createBtn?.click();
+      quickPlayBtn?.click();
     }
   });
   

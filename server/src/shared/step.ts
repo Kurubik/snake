@@ -1,22 +1,28 @@
 // Deterministic game step function
 
-import { Direction, GameState, Position, Snake, Food, GameEvent, RoomSettings } from './types.js';
+import { Direction, GameState, Position, Snake, Food, GameEvent, RoomSettings, Projectile } from './types.js';
 import { RNG } from './rng.js';
-import { OPPOSITE_DIRECTIONS, NORMAL_FOOD_VALUE, SPECIAL_FOOD_VALUE, INITIAL_SNAKE_LENGTH } from './constants.js';
+import { OPPOSITE_DIRECTIONS, NORMAL_FOOD_VALUE, SPECIAL_FOOD_VALUE, INITIAL_SNAKE_LENGTH, PROJECTILE_DAMAGE, PROJECTILE_SPEED } from './constants.js';
 
 export interface InputMap {
   [playerId: string]: Direction;
+}
+
+export interface BoostMap {
+  [playerId: string]: boolean;
 }
 
 export function step(
   state: GameState,
   inputs: InputMap,
   settings: RoomSettings,
-  rng: RNG
+  rng: RNG,
+  boosts?: BoostMap
 ): GameState {
   const newState: GameState = {
     snakes: new Map(),
     foods: [...state.foods],
+    projectiles: [...(state.projectiles || [])],
     events: [],
   };
 
@@ -38,65 +44,66 @@ export function step(
     newState.snakes.set(id, newSnake);
   });
 
-  // Move snakes
+  // Move snakes (apply boost by moving twice)
   newState.snakes.forEach((snake, id) => {
     if (!snake.alive) return;
 
-    const head = snake.body[0];
-    const newHead = movePosition(head, snake.direction, settings);
+    const moveCount = boosts && boosts[id] ? 2 : 1;
     
-    // Check wall collision (if wrap disabled)
-    if (!settings.wrapEnabled) {
-      if (newHead.x < 0 || newHead.x >= settings.gridWidth ||
-          newHead.y < 0 || newHead.y >= settings.gridHeight) {
-        killSnake(snake, newState, settings, rng);
-        return;
+    for (let move = 0; move < moveCount; move++) {
+      const head = snake.body[0];
+      const newHead = movePosition(head, snake.direction, settings);
+      
+      // Check wall collision (if wrap disabled)
+      if (!settings.wrapEnabled) {
+        if (newHead.x < 0 || newHead.x >= settings.gridWidth ||
+            newHead.y < 0 || newHead.y >= settings.gridHeight) {
+          killSnake(snake, newState, settings, rng);
+          break;
+        }
       }
-    }
 
-    // Add new head
-    snake.body.unshift(newHead);
-    
-    // Check food collision
-    let ateFood = false;
-    let foodValue = 0;
-    
-    newState.foods = newState.foods.filter(food => {
-      if (food.position.x === newHead.x && food.position.y === newHead.y) {
-        ateFood = true;
-        foodValue = food.value;
-        newState.events.push({
-          type: 'eat',
-          playerId: id,
-          position: food.position,
-          data: { value: food.value }
-        });
-        return false;
-      }
-      return true;
-    });
+      // Add new head
+      snake.body.unshift(newHead);
+      
+      // Check food collision
+      let ateFood = false;
+      let foodValue = 0;
+      
+      newState.foods = newState.foods.filter(food => {
+        if (food.position.x === newHead.x && food.position.y === newHead.y) {
+          ateFood = true;
+          foodValue = food.value;
+          newState.events.push({
+            type: 'eat',
+            playerId: id,
+            position: food.position,
+            data: { value: food.value }
+          });
+          return false;
+        }
+        return true;
+      });
 
-    // Grow or move snake
-    if (ateFood) {
-      snake.score += foodValue;
-      // Grow by food value (don't remove tail segments)
-      for (let i = 1; i < foodValue; i++) {
-        snake.body.push({ ...snake.body[snake.body.length - 1] });
+      // Grow or move snake
+      if (ateFood) {
+        snake.score += foodValue;
+        // Grow by food value (don't remove tail segments)
+        for (let i = 1; i < foodValue; i++) {
+          snake.body.push({ ...snake.body[snake.body.length - 1] });
+        }
+      } else {
+        // Remove tail
+        snake.body.pop();
       }
-    } else {
-      // Remove tail
-      snake.body.pop();
     }
   });
 
   // Check collisions between snakes
-  const positions = new Map<string, string>();
-  
   newState.snakes.forEach((snake, id) => {
     if (!snake.alive) return;
 
     const head = snake.body[0];
-    const headKey = `${head.x},${head.y}`;
 
     // Check self collision
     for (let i = 1; i < snake.body.length; i++) {
@@ -117,6 +124,62 @@ export function step(
         }
       }
     });
+  });
+
+  // Update projectiles
+  newState.projectiles = newState.projectiles.filter(projectile => {
+    // Move projectile
+    for (let i = 0; i < PROJECTILE_SPEED; i++) {
+      projectile.position = movePosition(projectile.position, projectile.direction, settings);
+    }
+    
+    // Decrease lifetime
+    projectile.lifetime--;
+    
+    // Check if hit wall (remove projectile)
+    if (!settings.wrapEnabled) {
+      if (projectile.position.x < 0 || projectile.position.x >= settings.gridWidth ||
+          projectile.position.y < 0 || projectile.position.y >= settings.gridHeight) {
+        return false;
+      }
+    }
+    
+    // Check collision with snakes
+    let hit = false;
+    newState.snakes.forEach((snake, id) => {
+      if (!snake.alive || id === projectile.ownerId) return;
+      
+      for (let i = 0; i < snake.body.length; i++) {
+        const segment = snake.body[i];
+        if (segment.x === projectile.position.x && segment.y === projectile.position.y) {
+          // Hit! Remove segments from snake
+          const segmentsToRemove = Math.min(PROJECTILE_DAMAGE, snake.body.length - 1);
+          
+          if (segmentsToRemove >= snake.body.length - 1) {
+            // Kill snake if too small
+            killSnake(snake, newState, settings, rng);
+          } else {
+            // Remove segments from tail
+            for (let j = 0; j < segmentsToRemove; j++) {
+              snake.body.pop();
+            }
+          }
+          
+          newState.events.push({
+            type: 'hit',
+            playerId: id,
+            position: projectile.position,
+            data: { damage: segmentsToRemove }
+          });
+          
+          hit = true;
+          break;
+        }
+      }
+    });
+    
+    // Remove projectile if hit or lifetime expired
+    return !hit && projectile.lifetime > 0;
   });
 
   // Spawn new food to maintain food count
@@ -217,6 +280,11 @@ function findEmptyPosition(state: GameState, settings: RoomSettings, rng: RNG): 
   // Mark food positions
   state.foods.forEach(food => {
     occupied.add(`${food.position.x},${food.position.y}`);
+  });
+
+  // Mark projectile positions
+  state.projectiles?.forEach(projectile => {
+    occupied.add(`${projectile.position.x},${projectile.position.y}`);
   });
 
   // Find empty positions

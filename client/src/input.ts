@@ -1,17 +1,22 @@
 // Input handling for keyboard and touch
 
-import { sendInput } from './net';
+import { sendInput, sendBoost, sendFire } from './net';
 import { Direction } from './shared/types';
 import { OPPOSITE_DIRECTIONS } from './shared/constants';
+import { gameStatus } from './main';
 
 let lastDirection: Direction | null = null;
 let inputBuffer: Direction | null = null;
 let lastInputTime = 0;
 const INPUT_COOLDOWN = 50; // ms between inputs
+let isBoostPressed = false;
+let lastFireTime = 0;
+const FIRE_COOLDOWN = 500; // ms between fires
 
 export function initInput() {
   // Keyboard controls
-  window.addEventListener('keydown', handleKeyboard);
+  window.addEventListener('keydown', handleKeydown);
+  window.addEventListener('keyup', handleKeyup);
   
   // Touch controls
   initTouchControls();
@@ -20,7 +25,10 @@ export function initInput() {
   initMobileButtons();
 }
 
-function handleKeyboard(event: KeyboardEvent) {
+function handleKeydown(event: KeyboardEvent) {
+  // Only handle input during game
+  if (gameStatus !== 'playing') return;
+  
   let direction: Direction | null = null;
   
   switch (event.key) {
@@ -44,11 +52,34 @@ function handleKeyboard(event: KeyboardEvent) {
     case 'D':
       direction = 'right';
       break;
+    case 'Shift':
+      if (!isBoostPressed) {
+        isBoostPressed = true;
+        sendBoost(true);
+      }
+      event.preventDefault();
+      return;
+    case ' ':
+    case 'Space':
+      const now = Date.now();
+      if (now - lastFireTime >= FIRE_COOLDOWN) {
+        sendFire();
+        lastFireTime = now;
+      }
+      event.preventDefault();
+      return;
   }
   
   if (direction) {
     event.preventDefault();
     handleDirectionInput(direction);
+  }
+}
+
+function handleKeyup(event: KeyboardEvent) {
+  if (event.key === 'Shift' && isBoostPressed) {
+    isBoostPressed = false;
+    sendBoost(false);
   }
 }
 
@@ -146,9 +177,25 @@ function initMobileButtons() {
     <button class="control-button down" data-dir="down">↓</button>
   `;
   
-  ui.appendChild(controls);
+  // Add action buttons
+  const actionControls = document.createElement('div');
+  actionControls.className = 'mobile-actions';
+  actionControls.style.cssText = `
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    display: flex;
+    gap: 10px;
+  `;
+  actionControls.innerHTML = `
+    <button class="action-button boost" id="boostBtn">⚡ Boost</button>
+    <button class="action-button fire" id="fireBtn">🔥 Fire</button>
+  `;
   
-  // Add event listeners
+  ui.appendChild(controls);
+  ui.appendChild(actionControls);
+  
+  // Add event listeners for direction buttons
   controls.querySelectorAll('.control-button').forEach(button => {
     button.addEventListener('click', (e) => {
       const dir = (e.target as HTMLElement).dataset.dir as Direction;
@@ -162,6 +209,47 @@ function initMobileButtons() {
       e.preventDefault();
     });
   });
+  
+  // Boost button
+  const boostBtn = document.getElementById('boostBtn');
+  if (boostBtn) {
+    boostBtn.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      if (!isBoostPressed) {
+        isBoostPressed = true;
+        sendBoost(true);
+        boostBtn.style.backgroundColor = 'rgba(255, 255, 0, 0.3)';
+      }
+    });
+    
+    boostBtn.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      if (isBoostPressed) {
+        isBoostPressed = false;
+        sendBoost(false);
+        boostBtn.style.backgroundColor = '';
+      }
+    });
+  }
+  
+  // Fire button
+  const fireBtn = document.getElementById('fireBtn');
+  if (fireBtn) {
+    fireBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const now = Date.now();
+      if (now - lastFireTime >= FIRE_COOLDOWN) {
+        sendFire();
+        lastFireTime = now;
+        
+        // Visual feedback
+        fireBtn.style.backgroundColor = 'rgba(255, 0, 0, 0.3)';
+        setTimeout(() => {
+          fireBtn.style.backgroundColor = '';
+        }, 200);
+      }
+    });
+  }
 }
 
 // Reset input state

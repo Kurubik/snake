@@ -10,6 +10,13 @@ export const DEFAULT_SETTINGS = {
   specialFoodChance: 0.1,
 };
 
+export const PUBLIC_ROOM_CODE = 'PUBLIC';
+export const BOOST_MULTIPLIER = 2; // Speed multiplier when boosting
+export const PROJECTILE_SPEED = 2; // Grid cells per tick
+export const PROJECTILE_LIFETIME = 20; // Ticks before projectile disappears
+export const PROJECTILE_COST = 1; // Body segments lost when firing
+export const PROJECTILE_DAMAGE = 2; // Body segments lost when hit
+
 export const CELL_SIZE = 1;
 export const INITIAL_SNAKE_LENGTH = 3;
 export const NORMAL_FOOD_VALUE = 1;

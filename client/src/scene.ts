@@ -1,10 +1,10 @@
 // Three.js scene setup and rendering
 
 import * as THREE from 'three';
-import { currentState } from './main';
+import { currentState, playerId } from './main';
 import { getInterpolatedState } from './net';
 import { CELL_SIZE, DEFAULT_SETTINGS } from './shared/constants';
-import { GameState } from './shared/types';
+import { GameState, Snake, Food, Projectile } from './shared/types';
 
 let scene: THREE.Scene;
 let camera: THREE.OrthographicCamera;
@@ -15,11 +15,13 @@ let gridHeight = DEFAULT_SETTINGS.gridHeight;
 // Meshes for rendering
 let snakeMeshes = new Map<string, THREE.InstancedMesh>();
 let foodMeshes: THREE.InstancedMesh;
+let projectileMeshes: THREE.InstancedMesh;
 let gridLines: THREE.LineSegments;
 
 // Materials
 let snakeMaterials = new Map<string, THREE.MeshBasicMaterial>();
 let foodMaterial: THREE.MeshBasicMaterial;
+let projectileMaterial: THREE.MeshBasicMaterial;
 let gridMaterial: THREE.LineBasicMaterial;
 
 export function initScene(canvas: HTMLCanvasElement) {
@@ -74,6 +76,14 @@ export function initScene(canvas: HTMLCanvasElement) {
     opacity: 0.9
   });
   
+  projectileMaterial = new THREE.MeshBasicMaterial({
+    color: 0xff6600,
+    emissive: 0xff6600,
+    emissiveIntensity: 0.5,
+    transparent: true,
+    opacity: 0.9
+  });
+  
   // Create grid
   createGrid();
   
@@ -82,6 +92,12 @@ export function initScene(canvas: HTMLCanvasElement) {
   foodMeshes = new THREE.InstancedMesh(foodGeometry, foodMaterial, 100);
   foodMeshes.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   scene.add(foodMeshes);
+  
+  // Create projectile mesh pool  
+  const projectileGeometry = new THREE.PlaneGeometry(CELL_SIZE * 0.25, CELL_SIZE * 0.25);
+  projectileMeshes = new THREE.InstancedMesh(projectileGeometry, projectileMaterial, 50);
+  projectileMeshes.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  scene.add(projectileMeshes);
   
   // Add ambient light
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
@@ -165,7 +181,7 @@ function createGrid() {
   scene.add(borderLines);
 }
 
-export function updateScene(_deltaTime: number) {
+export function updateScene(deltaTime: number) {
   if (!currentState) return;
   
   // Use interpolated state for smooth movement
@@ -181,6 +197,9 @@ export function updateScene(_deltaTime: number) {
   
   // Render food
   renderFood(state);
+  
+  // Render projectiles
+  renderProjectiles(state);
   
   // No camera follow - camera stays fixed to show entire field
 }
@@ -201,16 +220,18 @@ function renderSnakes(state: GameState) {
     let material = snakeMaterials.get(id);
     if (!material) {
       const color = new THREE.Color(snake.color || 0x00ffff);
-      // const isPlayer = id === playerId;
+      const isPlayer = id === playerId;
       material = new THREE.MeshBasicMaterial({ 
         color,
         transparent: true,
-        opacity: snake.alive ? 1 : 0.3
+        opacity: snake.alive ? 1 : 0.3,
+        emissive: isPlayer ? color : undefined,
+        emissiveIntensity: isPlayer ? 0.3 : 0
       });
       snakeMaterials.set(id, material);
     }
     
-    // Create instanced mesh for snake segments  
+    // Create instanced mesh for snake segments
     const segmentGeometry = new THREE.PlaneGeometry(CELL_SIZE * 0.85, CELL_SIZE * 0.85);
     const snakeMesh = new THREE.InstancedMesh(
       segmentGeometry,
@@ -291,6 +312,47 @@ function renderFood(state: GameState) {
   if (foodMeshes.instanceColor) {
     foodMeshes.instanceColor.needsUpdate = true;
   }
+}
+
+function renderProjectiles(state: GameState) {
+  if (!projectileMeshes || !state.projectiles) return;
+  
+  const matrix = new THREE.Matrix4();
+  
+  // Hide all instances first
+  for (let i = 0; i < projectileMeshes.count; i++) {
+    matrix.makeScale(0, 0, 0);
+    projectileMeshes.setMatrixAt(i, matrix);
+  }
+  
+  // Position projectiles
+  state.projectiles.forEach((projectile, i) => {
+    if (i >= projectileMeshes.count) return;
+    
+    // Rotate based on direction
+    let rotation = 0;
+    switch (projectile.direction) {
+      case 'up': rotation = 0; break;
+      case 'right': rotation = -Math.PI / 2; break;
+      case 'down': rotation = Math.PI; break;
+      case 'left': rotation = Math.PI / 2; break;
+    }
+    
+    // Pulsing effect
+    const pulse = 1 + Math.sin(Date.now() * 0.01) * 0.2;
+    
+    matrix.makeRotationZ(rotation);
+    matrix.scale(new THREE.Vector3(pulse, pulse * 1.5, 1));
+    matrix.setPosition(
+      projectile.position.x - gridWidth / 2 + 0.5,
+      -(projectile.position.y - gridHeight / 2 + 0.5),  // Invert Y for display
+      0.15
+    );
+    
+    projectileMeshes.setMatrixAt(i, matrix);
+  });
+  
+  projectileMeshes.instanceMatrix.needsUpdate = true;
 }
 
 export function render() {

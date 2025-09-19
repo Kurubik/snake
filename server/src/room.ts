@@ -19,24 +19,26 @@ import {
   COUNTDOWN_DURATION,
   SNAKE_COLORS,
   MAX_INPUT_RATE,
+  PUBLIC_ROOM_CODE,
 } from './shared/constants.js';
 import { RNG, createSeed } from './shared/rng.js';
-import { step, initializeSnake, InputMap } from './shared/step.js';
+import { step, initializeSnake, InputMap, BoostMap } from './shared/step.js';
 import { hashState } from './shared/hash.js';
 import { sendMessage, broadcastToRoom, generateRoomCode, getLobbyData, findClientSocket } from './index.js';
 
 // Input tracking for rate limiting
 const inputRates = new Map<string, number[]>();
 
-export function createRoom(hostId: string, hostName: string, settings?: Partial<any>): Room {
+export function createRoom(hostId: string, hostName: string, settings?: Partial<any>, code?: string): Room {
   const room: Room = {
-    code: generateRoomCode(),
+    code: code || generateRoomCode(),
     hostId,
     settings: { ...DEFAULT_SETTINGS, ...settings },
     players: new Map(),
     state: {
       snakes: new Map(),
       foods: [],
+      projectiles: [],
       events: [],
     },
     status: 'waiting',
@@ -96,6 +98,14 @@ export function handleMessage(
       
     case 'input':
       handleInput(ws, message.data, client, rooms);
+      break;
+      
+    case 'boost':
+      handleBoost(ws, message.data, client, rooms);
+      break;
+      
+    case 'fire':
+      handleFire(ws, message.data, client, rooms);
       break;
       
     case 'spectate':
@@ -176,8 +186,65 @@ function handleJoin(
     return;
   }
   
-  // Find and join room
-  const room = rooms.get(roomCode.toUpperCase());
+  const targetCode = roomCode.toUpperCase();
+  
+  // Special handling for PUBLIC room
+  if (targetCode === PUBLIC_ROOM_CODE) {
+    let room = rooms.get(PUBLIC_ROOM_CODE);
+    
+    // Create PUBLIC room if it doesn't exist
+    if (!room) {
+      room = createRoom(client.playerId, client.name, {
+        maxPlayers: 10, // More players for public room
+      }, PUBLIC_ROOM_CODE);
+      rooms.set(PUBLIC_ROOM_CODE, room);
+    }
+    
+    // Check if room is full
+    if (room.players.size >= room.settings.maxPlayers && !room.players.has(client.playerId)) {
+      sendMessage(ws, {
+        type: 'error',
+        data: {
+          code: 'ROOM_FULL',
+          message: 'Public room is full',
+        },
+      });
+      return;
+    }
+    
+    // Join the public room
+    if (!room.players.has(client.playerId)) {
+      room.players.set(client.playerId, {
+        id: client.playerId,
+        name: client.name,
+        ready: false,
+        spectating: room.status === 'playing',
+      });
+    }
+    
+    client.roomCode = PUBLIC_ROOM_CODE;
+    
+    sendMessage(ws, {
+      type: 'joined',
+      data: {
+        playerId: client.playerId,
+        roomCode: PUBLIC_ROOM_CODE,
+        seed: room.seed,
+        settings: room.settings,
+      },
+    });
+    
+    // Broadcast lobby update to all players
+    broadcastToRoom(room, {
+      type: 'lobby',
+      data: getLobbyData(room),
+    }, clients);
+    
+    return;
+  }
+  
+  // Find and join regular room
+  const room = rooms.get(targetCode);
   
   if (!room) {
     sendMessage(ws, {
@@ -271,6 +338,7 @@ function startGame(
   
   // Create snakes with starting positions
   room.state.snakes.clear();
+  room.state.projectiles = []; // Initialize projectiles array
   
   playerArray.forEach((player, index) => {
     // Distribute players around the grid
@@ -338,12 +406,21 @@ function startGameLoop(
     
     // Process game step
     const inputs: InputMap = {};
+    const boosts: BoostMap = {};
+    
     pendingInputs.forEach((dir, playerId) => {
       inputs[playerId] = dir;
     });
     pendingInputs.clear();
     
-    room.state = step(room.state, inputs, room.settings, rng);
+    // Collect boost states
+    room.players.forEach((player, playerId) => {
+      if (player.boosting) {
+        boosts[playerId] = true;
+      }
+    });
+    
+    room.state = step(room.state, inputs, room.settings, rng, boosts);
     room.tick++;
     
     // Check for game end
@@ -372,6 +449,7 @@ function startGameLoop(
           you: yourSnake,
           others: otherSnakes,
           foods: room.state.foods,
+          projectiles: room.state.projectiles || [],
           events: room.state.events,
           full: room.tick % 30 === 0, // Send full state every 30 ticks
           hash: hashState(room.state),
@@ -443,6 +521,65 @@ function handleSpectate(
       data: getLobbyData(room),
     }, clients);
   }
+}
+
+function handleBoost(
+  ws: WebSocket,
+  data: { active: boolean },
+  client: any,
+  rooms: Map<string, Room>
+) {
+  const room = rooms.get(client.roomCode);
+  if (!room || room.status !== 'playing') return;
+  
+  const player = room.players.get(client.playerId);
+  if (!player) return;
+  
+  // Store boost state on player
+  player.boosting = data.active;
+}
+
+function handleFire(
+  ws: WebSocket,
+  data: { playerId: string },
+  client: any,
+  rooms: Map<string, Room>
+) {
+  const room = rooms.get(client.roomCode);
+  if (!room || room.status !== 'playing') return;
+  
+  const player = room.players.get(client.playerId);
+  if (!player || !player.snake || !player.snake.alive) return;
+  
+  const snake = room.state.snakes.get(client.playerId);
+  if (!snake || snake.body.length <= 3) return; // Need at least 3 segments to fire
+  
+  // Remove last segment from snake (cost)
+  const removedSegment = snake.body.pop();
+  
+  // Create projectile at snake's head
+  const head = snake.body[0];
+  const projectileId = `proj_${client.playerId}_${Date.now()}`;
+  
+  if (!room.state.projectiles) {
+    room.state.projectiles = [];
+  }
+  
+  room.state.projectiles.push({
+    id: projectileId,
+    ownerId: client.playerId,
+    position: { ...head },
+    direction: snake.direction,
+    speed: 2,
+    lifetime: 20,
+  });
+  
+  // Add fire event
+  room.state.events.push({
+    type: 'fire',
+    playerId: client.playerId,
+    position: head,
+  });
 }
 
 function endGame(
@@ -540,5 +677,6 @@ declare module './shared/types' {
   
   interface Player {
     lastSeq?: number;
+    boosting?: boolean;
   }
 }

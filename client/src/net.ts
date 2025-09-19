@@ -157,6 +157,7 @@ function handleState(data: StateMessage) {
   const gameState: GameState = {
     snakes: new Map(),
     foods: data.foods,
+    projectiles: data.projectiles || [],
     events: data.events,
   };
 
@@ -309,6 +310,22 @@ export function sendInput(direction: Direction) {
     predictedState = step(predictedState, inputs, roomSettings, rng);
     setCurrentState(predictedState);
   }
+}
+
+export function sendBoost(active: boolean) {
+  sendMessage({
+    type: 'boost',
+    data: { active }
+  });
+}
+
+export function sendFire() {
+  if (!playerId) return;
+  
+  sendMessage({
+    type: 'fire',
+    data: { playerId }
+  });
 }
 
 function startPingInterval() {

@@ -53,14 +53,24 @@ export interface Room {
   seed: number;
 }
 
+export interface Projectile {
+  id: string;
+  ownerId: string;
+  position: Position;
+  direction: Direction;
+  speed: number;
+  lifetime: number;
+}
+
 export interface GameState {
   snakes: Map<string, Snake>;
   foods: Food[];
+  projectiles: Projectile[];
   events: GameEvent[];
 }
 
 export interface GameEvent {
-  type: 'eat' | 'death' | 'spawn';
+  type: 'eat' | 'death' | 'spawn' | 'fire' | 'hit';
   playerId?: string;
   position?: Position;
   data?: any;
@@ -68,7 +78,7 @@ export interface GameEvent {
 
 // Network messages
 export interface ClientMessage {
-  type: 'join' | 'createRoom' | 'ready' | 'input' | 'spectate' | 'ping';
+  type: 'join' | 'createRoom' | 'ready' | 'input' | 'spectate' | 'ping' | 'boost' | 'fire';
   data: any;
 }
 
@@ -126,6 +136,7 @@ export interface StateMessage {
   you?: Snake;
   others: Snake[];
   foods: Food[];
+  projectiles: Projectile[];
   events: GameEvent[];
   full?: boolean;
   hash?: string;
