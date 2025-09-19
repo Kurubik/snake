@@ -17,6 +17,7 @@ export function step(
   const newState: GameState = {
     snakes: new Map(),
     foods: [...state.foods],
+    projectiles: [...(state.projectiles || [])],
     events: [],
   };
 

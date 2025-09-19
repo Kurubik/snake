@@ -78,8 +78,6 @@ export function initScene(canvas: HTMLCanvasElement) {
   
   projectileMaterial = new THREE.MeshBasicMaterial({
     color: 0xff6600,
-    emissive: 0xff6600,
-    emissiveIntensity: 0.5,
     transparent: true,
     opacity: 0.9
   });
@@ -219,14 +217,14 @@ function renderSnakes(state: GameState) {
     // Get or create material for this snake
     let material = snakeMaterials.get(id);
     if (!material) {
-      const color = new THREE.Color(snake.color || 0x00ffff);
+      const baseColor = new THREE.Color(snake.color || 0x00ffff);
       const isPlayer = id === playerId;
+      // Make player's snake slightly brighter for visibility
+      const color = isPlayer ? baseColor.clone().addScalar(0.2) : baseColor;
       material = new THREE.MeshBasicMaterial({ 
         color,
         transparent: true,
-        opacity: snake.alive ? 1 : 0.3,
-        emissive: isPlayer ? color : undefined,
-        emissiveIntensity: isPlayer ? 0.3 : 0
+        opacity: snake.alive ? 1 : 0.3
       });
       snakeMaterials.set(id, material);
     }

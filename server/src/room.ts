@@ -626,6 +626,7 @@ function endGame(
     room.state = {
       snakes: new Map(),
       foods: [],
+      projectiles: [],
       events: [],
     };
     

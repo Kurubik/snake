@@ -369,6 +369,7 @@ export function getInterpolatedState(): GameState | null {
   const interpolated: GameState = {
     snakes: new Map(),
     foods: state2.foods, // Use latest food positions
+    projectiles: state2.projectiles || [],
     events: []
   };
 
