@@ -2,7 +2,6 @@
 
 import { initScene, render, updateScene } from './scene';
 import { initUI, updateUI } from './ui';
-import { connect } from './net';
 import { initInput } from './input';
 import { GameState } from './shared/types';
 

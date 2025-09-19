@@ -5,7 +5,9 @@
     "rootDir": "./src",
     "types": ["node"],
     "module": "ESNext",
-    "moduleResolution": "node"
+    "moduleResolution": "node",
+    "noUnusedLocals": false,
+    "noUnusedParameters": false
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "**/*.test.ts"]

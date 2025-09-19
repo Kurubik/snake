@@ -1,10 +1,10 @@
 // Three.js scene setup and rendering
 
 import * as THREE from 'three';
-import { currentState, playerId } from './main';
+import { currentState } from './main';
 import { getInterpolatedState } from './net';
 import { CELL_SIZE, DEFAULT_SETTINGS } from './shared/constants';
-import { GameState, Snake, Food } from './shared/types';
+import { GameState } from './shared/types';
 
 let scene: THREE.Scene;
 let camera: THREE.OrthographicCamera;
@@ -20,7 +20,6 @@ let gridLines: THREE.LineSegments;
 // Materials
 let snakeMaterials = new Map<string, THREE.MeshBasicMaterial>();
 let foodMaterial: THREE.MeshBasicMaterial;
-let specialFoodMaterial: THREE.MeshBasicMaterial;
 let gridMaterial: THREE.LineBasicMaterial;
 
 export function initScene(canvas: HTMLCanvasElement) {
@@ -73,12 +72,6 @@ export function initScene(canvas: HTMLCanvasElement) {
     color: 0x00ffff,
     transparent: true,
     opacity: 0.9
-  });
-  
-  specialFoodMaterial = new THREE.MeshBasicMaterial({ 
-    color: 0xffff00,
-    transparent: true,
-    opacity: 1
   });
   
   // Create grid
@@ -172,7 +165,7 @@ function createGrid() {
   scene.add(borderLines);
 }
 
-export function updateScene(deltaTime: number) {
+export function updateScene(_deltaTime: number) {
   if (!currentState) return;
   
   // Use interpolated state for smooth movement
@@ -208,18 +201,16 @@ function renderSnakes(state: GameState) {
     let material = snakeMaterials.get(id);
     if (!material) {
       const color = new THREE.Color(snake.color || 0x00ffff);
-      const isPlayer = id === playerId;
+      // const isPlayer = id === playerId;
       material = new THREE.MeshBasicMaterial({ 
         color,
         transparent: true,
-        opacity: snake.alive ? 1 : 0.3,
-        emissive: isPlayer ? color : undefined,
-        emissiveIntensity: isPlayer ? 0.3 : 0
+        opacity: snake.alive ? 1 : 0.3
       });
       snakeMaterials.set(id, material);
     }
     
-    // Create instanced mesh for snake segments
+    // Create instanced mesh for snake segments  
     const segmentGeometry = new THREE.PlaneGeometry(CELL_SIZE * 0.85, CELL_SIZE * 0.85);
     const snakeMesh = new THREE.InstancedMesh(
       segmentGeometry,

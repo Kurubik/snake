@@ -1,6 +1,6 @@
 // Deterministic game step function (client version without .js imports)
 
-import { Direction, GameState, Position, Snake, Food, GameEvent, RoomSettings } from './types';
+import { Direction, GameState, Position, Snake, RoomSettings } from './types';
 import { RNG } from './rng';
 import { OPPOSITE_DIRECTIONS, NORMAL_FOOD_VALUE, SPECIAL_FOOD_VALUE, INITIAL_SNAKE_LENGTH } from './constants';
 
@@ -90,13 +90,10 @@ export function step(
   });
 
   // Check collisions between snakes
-  const positions = new Map<string, string>();
-  
   newState.snakes.forEach((snake, id) => {
     if (!snake.alive) return;
 
     const head = snake.body[0];
-    const headKey = `${head.x},${head.y}`;
 
     // Check self collision
     for (let i = 1; i < snake.body.length; i++) {
@@ -170,7 +167,7 @@ function movePosition(pos: Position, dir: Direction, settings: RoomSettings): Po
   return { x, y };
 }
 
-function killSnake(snake: Snake, state: GameState, settings: RoomSettings, rng: RNG) {
+function killSnake(snake: Snake, state: GameState, _settings: RoomSettings, _rng: RNG) {
   snake.alive = false;
   
   state.events.push({

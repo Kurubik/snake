@@ -21,9 +21,10 @@
     },
     {
       "name": "snake-client",
-      "script": "npx",
-      "args": "serve ./client/dist -l 5173 -s",
+      "script": "serve",
+      "args": "-s ./client/dist -l 5173",
       "cwd": "./",
+      "interpreter": "npx",
       "env": {
         "NODE_ENV": "production"
       },

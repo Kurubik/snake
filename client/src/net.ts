@@ -13,7 +13,7 @@ import {
   EndedMessage,
   ErrorMessage
 } from './shared/types';
-import { INTERPOLATION_DELAY, RECONCILIATION_BUFFER_SIZE } from './shared/constants';
+import { RECONCILIATION_BUFFER_SIZE } from './shared/constants';
 import { setCurrentState, setPlayerId, setRoomCode, setGameStatus, playerId, gameStatus } from './main';
 import { showError, updateLobby, showCountdown, showEndScreen } from './ui';
 import { RNG } from './shared/rng';
@@ -25,9 +25,7 @@ let sequenceNumber = 0;
 let pendingInputs: Array<{ seq: number; dir: Direction; time: number }> = [];
 let lastAcknowledgedSeq = 0;
 let serverStates: StateMessage[] = [];
-let interpolationTime = 0;
 let currentTick = 0;
-let tickRate = 10;
 let roomSettings: any = null;
 let roomSeed = 0;
 let pingStartTime = 0;
@@ -37,7 +35,7 @@ let currentPing = 0;
 let predictedState: GameState | null = null;
 
 export function connect(serverUrl?: string) {
-  const url = serverUrl || import.meta.env.VITE_SERVER_URL || 'ws://localhost:3005';
+  const url = serverUrl || (import.meta as any).env?.VITE_SERVER_URL || 'ws://localhost:3005';
 
   try {
     ws = new WebSocket(url);
@@ -126,7 +124,7 @@ function handleLobby(data: LobbyMessage) {
 }
 
 function handleStart(data: StartMessage) {
-  tickRate = data.tickRate;
+  // tickRate = data.tickRate; // Store if needed later
   const countdown = Math.max(0, data.startTime - Date.now());
   showCountdown(countdown);
 
@@ -179,7 +177,7 @@ function handleState(data: StateMessage) {
 
     // Re-apply unacknowledged inputs
     pendingInputs.forEach(input => {
-      const inputs: InputMap = { [playerId]: input.dir };
+      const inputs: InputMap = { [playerId as string]: input.dir };
       predictedState = step(predictedState!, inputs, roomSettings, rng);
     });
 
@@ -306,7 +304,7 @@ export function sendInput(direction: Direction) {
 
   // Apply prediction immediately
   if (predictedState && roomSettings) {
-    const inputs: InputMap = { [playerId]: direction };
+    const inputs: InputMap = { [playerId as string]: direction };
     const rng = new RNG(roomSeed + currentTick + 1);
     predictedState = step(predictedState, inputs, roomSettings, rng);
     setCurrentState(predictedState);
@@ -330,7 +328,7 @@ export function getPing(): number {
 export function getInterpolatedState(): GameState | null {
   if (serverStates.length < 2) return null;
 
-  const now = Date.now() - INTERPOLATION_DELAY;
+  // const now = Date.now() - INTERPOLATION_DELAY;
 
   // Find two states to interpolate between
   let state1: StateMessage | null = null;

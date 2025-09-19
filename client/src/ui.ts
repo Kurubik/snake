@@ -238,7 +238,7 @@ function updateHUD() {
   const playersListElement = document.getElementById('playersList');
   if (playersListElement && currentLobbyData) {
     const playerItems = Array.from(currentState.snakes.values()).map(snake => {
-      const player = currentLobbyData.players.find(p => p.id === snake.id);
+      const player = currentLobbyData ? currentLobbyData.players.find(p => p.id === snake.id) : null;
       if (!player) return '';
       
       return `
