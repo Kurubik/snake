@@ -21,12 +21,11 @@
     },
     {
       "name": "snake-client",
-      "script": "./server/client-server.js",
+      "script": "npx",
+      "args": "http-server ./client/dist -p 5173 -a 0.0.0.0 -d false --proxy http://0.0.0.0:5173?",
       "cwd": "./",
       "env": {
-        "NODE_ENV": "production",
-        "CLIENT_PORT": 5173,
-        "CLIENT_HOST": "0.0.0.0"
+        "NODE_ENV": "production"
       },
       "error_file": "./logs/client-error.log",
       "out_file": "./logs/client-out.log",
